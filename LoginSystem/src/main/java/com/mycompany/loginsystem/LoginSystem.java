@@ -83,7 +83,7 @@ public class LoginSystem {
         }
 
         System.out.println(user.getLoginMessage(loginStatus));
-        
+        Message.main(args);
        
 
         scanner.close();

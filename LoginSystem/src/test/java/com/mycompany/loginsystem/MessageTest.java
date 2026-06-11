@@ -6,109 +6,214 @@ package com.mycompany.loginsystem;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
-
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 /**
  *
  * @author Mulondo Munjodzi
  */
 public class MessageTest {
-    
 
 
-    Message msg = new Message();
-
-    // TEST 1: checkRecipientCell
+    private final Message msg = new Message();
 
     @Test
-
-    public void testCheckRecipientCell_Valid() {
-
+    void testCheckRecipientCellValid() {
         assertTrue(msg.checkRecipientCell("+27831234567"));
-
     }
 
     @Test
-
-    public void testCheckRecipientCell_Invalid() {
-
+    void testCheckRecipientCellInvalid() {
         assertFalse(msg.checkRecipientCell("0831234567"));
-
-    }
-
-    // TEST 2: validateMessage
-
-    @Test
-
-    public void testValidateMessage_Valid() {
-
-        String result = msg.validateMessage("Hello world");
-
-        assertEquals("Message ready to send.", result);
-
     }
 
     @Test
-
-    public void testValidateMessage_TooLong() {
-
-        String longMessage = new String(new char[260]).replace("\0", "a");
-
-        String result = msg.validateMessage(longMessage);
-
-        assertTrue(result.contains("exceeds 250 characters"));
-
+    void testValidateMessageValid() {
+        assertEquals(
+                "Message ready to send.",
+                msg.validateMessage("Hello")
+        );
     }
 
-    // TEST 3: generateMessageID
+    @Test
+    void testValidateMessageTooLong() {
+
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < 251; i++) {
+            sb.append("a");
+        }
+
+        String result = msg.validateMessage(sb.toString());
+
+        assertTrue(result.contains("Message exceeds 250 characters"));
+    }
 
     @Test
-
-    public void testGenerateMessageID() {
+    void testGenerateMessageID() {
 
         String id = msg.generateMessageID();
 
         assertNotNull(id);
-
         assertEquals(10, id.length());
-
-    }
-
-    // TEST 4: createMessageHash
-
-    @Test
-
-    public void testCreateMessageHash() {
-
-        String hash = msg.createMessageHash("1234567890", 1, "Hello there");
-
-        assertEquals("12:1:HELLOTHERE", hash);
-
-    }
-
-    // TEST 5: sentMessage
-
-    @Test
-
-    public void testSentMessage_Send() {
-
-        assertEquals("Message successfully sent.", msg.sentMessage(1));
-
     }
 
     @Test
+    void testCreateMessageHash() {
 
-    public void testSentMessage_Store() {
+        String hash = msg.createMessageHash(
+                "1234567890",
+                1,
+                "Hello World"
+        );
 
-        assertEquals("Message successfully stored.", msg.sentMessage(3));
-
+        assertEquals("12:1:HELLOWORLD", hash);
     }
 
     @Test
-
-    public void testSentMessage_Invalid() {
-
-        assertEquals("Invalid option.", msg.sentMessage(99));
-
+    void testSentMessageSend() {
+        assertEquals(
+                "Message successfully sent.",
+                msg.sentMessage(1)
+        );
     }
 
-}  
+    @Test
+    void testSentMessageDisregard() {
+        assertEquals(
+                "Message disregarded.",
+                msg.sentMessage(2)
+        );
+    }
+
+    @Test
+    void testSentMessageStore() {
+        assertEquals(
+                "Message successfully stored.",
+                msg.sentMessage(3)
+        );
+    }
+
+    @Test
+    void testSentMessageInvalid() {
+        assertEquals(
+                "Invalid option.",
+                msg.sentMessage(100)
+        );
+    }
+
+    @Test
+    void testGetLongestMessage() throws Exception {
+
+        Field field =
+                Message.class.getDeclaredField("storedMessages");
+
+        field.setAccessible(true);
+
+        ArrayList<String> messages =
+                (ArrayList<String>) field.get(msg);
+
+        messages.add("Hi");
+        messages.add("This is the longest message");
+        messages.add("Hello");
+
+        assertEquals(
+                "This is the longest message",
+                msg.getLongestMessage()
+        );
+    }
+
+    @Test
+    void testSearchMessageID() throws Exception {
+
+        addStoredMessage(
+                "1234567890",
+                "12:1:HELLOWORLD",
+                "+27831234567",
+                "Hello World"
+        );
+
+        ByteArrayOutputStream output =
+                new ByteArrayOutputStream();
+
+        System.setOut(new PrintStream(output));
+
+        msg.searchMessageID("1234567890");
+
+        assertTrue(
+                output.toString().contains("Hello World")
+        );
+    }
+
+    @Test
+    void testSearchRecipient() throws Exception {
+
+        addStoredMessage(
+                "1234567890",
+                "12:1:HELLOWORLD",
+                "+27831234567",
+                "Hello World"
+        );
+
+        ByteArrayOutputStream output =
+                new ByteArrayOutputStream();
+
+        System.setOut(new PrintStream(output));
+
+        msg.searchRecipient("+27831234567");
+
+        assertTrue(
+                output.toString().contains("Hello World")
+        );
+    }
+
+    @Test
+    void testDeleteMessage() throws Exception {
+
+        addStoredMessage(
+                "1234567890",
+                "12:1:HELLOWORLD",
+                "+27831234567",
+                "Hello World"
+        );
+
+        ByteArrayOutputStream output =
+                new ByteArrayOutputStream();
+
+        System.setOut(new PrintStream(output));
+
+        msg.deleteMessage("12:1:HELLOWORLD");
+
+        assertTrue(
+                output.toString().contains("successfully deleted")
+        );
+    }
+
+    private void addStoredMessage(
+            String id,
+            String hash,
+            String recipient,
+            String message) throws Exception {
+
+        Field storedMessages =
+                Message.class.getDeclaredField("storedMessages");
+        Field storedRecipients =
+                Message.class.getDeclaredField("storedRecipients");
+        Field storedIDs =
+                Message.class.getDeclaredField("storedIDs");
+        Field storedHashes =
+                Message.class.getDeclaredField("storedHashes");
+
+        storedMessages.setAccessible(true);
+        storedRecipients.setAccessible(true);
+        storedIDs.setAccessible(true);
+        storedHashes.setAccessible(true);
+
+        ((ArrayList<String>) storedMessages.get(msg)).add(message);
+        ((ArrayList<String>) storedRecipients.get(msg)).add(recipient);
+        ((ArrayList<String>) storedIDs.get(msg)).add(id);
+        ((ArrayList<String>) storedHashes.get(msg)).add(hash);
+    }
+}
